@@ -74,7 +74,11 @@
           ;; These keys are ones a user can reasonably expect to apply when
           ;; assembling a project's build.  Notably, ones relating to a user's
           ;; credentials can be kept out.
-          (select-keys [:mvn/repos])))))
+          #_(select-keys [:mvn/repos])
+          ;; remove this `select-keys` - we use a single deps.edn to specify
+          ;; `:override-deps` for all projects, using the "_" convention as the
+          ;; artifact version to delegate to the cross-project version.
+          ))))
 
 (comment
   (tools.deps/combine-aliases
