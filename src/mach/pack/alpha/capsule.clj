@@ -113,7 +113,9 @@
         (cli/parse-opts args cli-options)
         errors (cond-> (:errors parsed-opts)
                  (not output)
-                 (conj "Output jar must be specified"))]
+                 (conj "Output jar must be specified")
+                 (not application-id)
+                 (conj "--application-id must be specified"))]
     (cond
       help
       (println (usage (:summary parsed-opts)))
@@ -126,8 +128,9 @@
         output
         (cond->
           [["Application-Class" "clojure.main"]
-           ["Application-ID" application-id]
-           ["Application-Version" application-version]]
+           ["Application-ID" application-id]]
+          application-version
+          (conj ["Application-Version" application-version])
           system-properties
           (conj ["System-Properties" system-properties])
           jvm-args
