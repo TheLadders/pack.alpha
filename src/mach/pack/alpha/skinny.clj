@@ -44,7 +44,7 @@
 
 (defn write-libs
   [{::tools-deps/keys [lib-map]}
-   {:keys [lib-dir output-target]}]
+   {:keys [lib-dir output-target no-local]}]
   (let [root (io/file lib-dir)]
     (vfs/write-vfs
       {:type :dir
@@ -70,7 +70,11 @@
                    (vfs/files-path (file-seq (io/file path)) (io/file path))))
             (lib-map/lib-dirs lib-map))
           :jar
-          (map
+          (->>
+           (lib-map/lib-dirs lib-map)
+           (filter #(or (not (:local/root %))
+                        (not no-local)))
+           (map
             (fn [{:keys [lib path] :as all}]
               {:path
                [(format "%s-%s.jar"
@@ -80,8 +84,7 @@
                :paths (vfs/files-path (file-seq (io/file path))
                                       (io/file path))
 
-               :type :jar})
-            (lib-map/lib-dirs lib-map)))))))
+               :type :jar}))))))))
 
 (defn write-all
   [x project-config lib-config]
@@ -93,6 +96,8 @@
 (def ^:private cli-options
   (concat
     [[nil "--no-libs" "Skip lib outputs"
+      :default false]
+     [nil "--no-local" "Skip :local/root outputs (assume they are AOT compiled)"
       :default false]
      [nil "--no-project" "Skip project outputs"
       :default false]
@@ -129,6 +134,7 @@
   (let [{{:keys [help
                  no-libs
                  no-project
+                 no-local
                  lib-dir
                  lib-type
                  project-path]
@@ -151,4 +157,12 @@
                             ".jar" :jar)})
         (when-not no-libs
           {:lib-dir lib-dir
+           :no-local no-local
            :output-target lib-type})))))
+
+(comment
+  (do (require '[org.purefn.kurosawa.log.core])
+      (org.purefn.kurosawa.log.core/set-level :info))
+  (-> (tools-deps/slurp-deps {})
+      (tools-deps/parse-deps-map {}))
+  )
