@@ -44,7 +44,7 @@
 
 (defn write-libs
   [{::tools-deps/keys [lib-map]}
-   {:keys [lib-dir output-target no-local]}]
+   {:keys [lib-dir output-target aot]}]
   (let [root (io/file lib-dir)]
     (vfs/write-vfs
       {:type :dir
@@ -70,21 +70,26 @@
                    (vfs/files-path (file-seq (io/file path)) (io/file path))))
             (lib-map/lib-dirs lib-map))
           :jar
-          (->>
-           (lib-map/lib-dirs lib-map)
-           (filter #(or (not (:local/root %))
-                        (not no-local)))
-           (map
-            (fn [{:keys [lib path] :as all}]
-              {:path
-               [(format "%s-%s.jar"
-                        (elodin/versioned-lib all)
-                        (elodin/directory-unique all))]
+          (map
+           (fn [{:keys [lib path] :as all}]
+             {:path
+              [(format "%s-%s.jar"
+                       (elodin/versioned-lib all)
+                       (elodin/directory-unique all))]
 
-               :paths (vfs/files-path (file-seq (io/file path))
-                                      (io/file path))
+              :paths (filter 
+                      (fn [{:keys [path] :as f}]
+                        (if (and aot (:local/root all))
+                          (do 
+                            (println path)
+                            (not (-> (last path)
+                                     (string/ends-with? ".clj"))))
+                          true))
+                      (vfs/files-path (file-seq (io/file path))
+                                      (io/file path)))
 
-               :type :jar}))))))))
+              :type :jar})
+           (lib-map/lib-dirs lib-map)))))))
 
 (defn write-all
   [x project-config lib-config]
@@ -97,7 +102,7 @@
   (concat
     [[nil "--no-libs" "Skip lib outputs"
       :default false]
-     [nil "--no-local" "Skip :local/root outputs (assume they are AOT compiled)"
+     [nil "--aot" "Do not include .clj files in jar artifact outputs (for AOT compilation)"
       :default false]
      [nil "--no-project" "Skip project outputs"
       :default false]
@@ -134,7 +139,7 @@
   (let [{{:keys [help
                  no-libs
                  no-project
-                 no-local
+                 aot
                  lib-dir
                  lib-type
                  project-path]
@@ -157,7 +162,7 @@
                             ".jar" :jar)})
         (when-not no-libs
           {:lib-dir lib-dir
-           :no-local no-local
+           :aot aot
            :output-target lib-type})))))
 
 (comment
