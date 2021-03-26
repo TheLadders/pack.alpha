@@ -80,10 +80,8 @@
               :paths (filter 
                       (fn [{:keys [path] :as f}]
                         (if (and aot (:local/root all))
-                          (do 
-                            (println path)
-                            (not (-> (last path)
-                                     (string/ends-with? ".clj"))))
+                          (not (-> (last path)
+                                   (string/ends-with? ".clj")))
                           true))
                       (vfs/files-path (file-seq (io/file path))
                                       (io/file path)))
