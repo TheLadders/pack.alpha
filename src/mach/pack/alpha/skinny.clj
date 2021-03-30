@@ -44,7 +44,7 @@
 
 (defn write-libs
   [{::tools-deps/keys [lib-map]}
-   {:keys [lib-dir output-target]}]
+   {:keys [lib-dir output-target aot]}]
   (let [root (io/file lib-dir)]
     (vfs/write-vfs
       {:type :dir
@@ -71,17 +71,23 @@
             (lib-map/lib-dirs lib-map))
           :jar
           (map
-            (fn [{:keys [lib path] :as all}]
-              {:path
-               [(format "%s-%s.jar"
-                        (elodin/versioned-lib all)
-                        (elodin/directory-unique all))]
+           (fn [{:keys [lib path] :as all}]
+             {:path
+              [(format "%s-%s.jar"
+                       (elodin/versioned-lib all)
+                       (elodin/directory-unique all))]
 
-               :paths (vfs/files-path (file-seq (io/file path))
-                                      (io/file path))
+              :paths (filter 
+                      (fn [{:keys [path] :as f}]
+                        (if (and aot (:local/root all))
+                          (not (-> (last path)
+                                   (string/ends-with? ".clj")))
+                          true))
+                      (vfs/files-path (file-seq (io/file path))
+                                      (io/file path)))
 
-               :type :jar})
-            (lib-map/lib-dirs lib-map)))))))
+              :type :jar})
+           (lib-map/lib-dirs lib-map)))))))
 
 (defn write-all
   [x project-config lib-config]
@@ -93,6 +99,8 @@
 (def ^:private cli-options
   (concat
     [[nil "--no-libs" "Skip lib outputs"
+      :default false]
+     [nil "--aot" "Do not include .clj files in jar artifact outputs (for AOT compilation)"
       :default false]
      [nil "--no-project" "Skip project outputs"
       :default false]
@@ -129,6 +137,7 @@
   (let [{{:keys [help
                  no-libs
                  no-project
+                 aot
                  lib-dir
                  lib-type
                  project-path]
@@ -151,4 +160,12 @@
                             ".jar" :jar)})
         (when-not no-libs
           {:lib-dir lib-dir
+           :aot aot
            :output-target lib-type})))))
+
+(comment
+  (do (require '[org.purefn.kurosawa.log.core])
+      (org.purefn.kurosawa.log.core/set-level :info))
+  (-> (tools-deps/slurp-deps {})
+      (tools-deps/parse-deps-map {}))
+  )
